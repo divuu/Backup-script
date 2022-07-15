@@ -1,0 +1,39 @@
+pipeline {
+    agent any 
+    parameters {
+            string(defaultValue: 'weekly', description: 'Weekly Job', name: 'INTERVAL')
+        }
+    triggers {
+        parameterizedCron('''
+            0 0 * * 0 % INTERVAL=weekly
+        ''')
+    }
+    environment {
+        DATABASE_HOST_PROD = credentials('prod-rds-host')
+        DATABASE_USERNAME_PROD = credentials('prod-rds-username')
+        DATABASE_PASSWORD_PROD = credentials('prod-rds-password')
+        AZURE_STORAGE_CONNECTION_STRING_PROD = credentials('prod-azure-storage-connection-string')
+        AZURE_STORAGE_ACCOUNT_NAME_PROD = credentials('prod-azure-storage-name')
+    }
+    stages {
+        stage('MySQL Backup Weekly') {
+            steps {
+                script {
+                    // docker.withRegistry('Registry_Name', 'dockerhub') {
+                    docker.withRegistry('Registry_Name) {
+
+                    docker.image(''Registry_Name:version').withRun('-e "DATABASE_HOST_PROD=${DATABASE_HOST_PROD}" \
+                    -e "DATABASE_USERNAME_PROD=${DATABASE_USERNAME_PROD}" \
+                    -e "DATABASE_PASSWORD_PROD=${DATABASE_PASSWORD_PROD}" \
+                    -e "AZURE_STORAGE_CONNECTION_STRING_PROD=${AZURE_STORAGE_CONNECTION_STRING_PROD}" \
+                    -e "AZURE_STORAGE_ACCOUNT_NAME_PROD=${AZURE_STORAGE_ACCOUNT_NAME_PROD}"') { c -> 
+                        docker.image(''Registry_Name:version').inside{
+                            sh 'python3 /opt/rdsbackup_common.py ${INTERVAL}'
+                        }
+                    }
+                    }
+                }
+            }
+        }
+    }
+}
